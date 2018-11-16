@@ -1,0 +1,45 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*- 
+import os
+import pandas as pd
+
+os.chdir("/home/.../forms/")
+#%%
+def maaklijst():
+    years = list(range(1993,2018))
+    qtrs = [1,2,3,4]    
+    teller=0
+    for i in years:
+        for j in qtrs:
+            df         = pd.read_fwf('form'+str(i)+str(j)+'.idx', header=8, names = ["form", "conm", "cik", "date", "file"], colspecs=[(0, 11), (12, 73), (74, 85), (86, 97), (98, 1000)], skiprows = [1])
+            df         = df.loc[(df.form=="SC 13D") | (df.form=="SC 13D/A") | (df.form=="SC 13G") | (df.form=="SC 13G/A")].sort_values(by=["cik", "date"]).copy()
+            df         = df.drop_duplicates(subset=['cik', 'date'], keep='last')
+            df['date'] = pd.to_datetime(df['date']).dt.normalize()
+            df['quarter'] = pd.PeriodIndex(df['date'], freq='Q-DEC')
+            df['year'] = df["date"].dt.year
+            if teller==0:
+                dfr = df.copy()
+            else:
+                dfr = dfr.append(df)
+            teller +=1
+            print(teller)
+    return(dfr)
+
+df = maaklijst()
+
+#%%
+# Diagnostics
+s = df.quarter.value_counts().sort_index()
+
+df.form.value_counts()
+y = df.year.value_counts().sort_index()
+
+dfs = df.drop_duplicates(subset=['cik', 'quarter'], keep='last')
+ds = dfs.quarter.value_counts().sort_index()
+
+dfy = df.drop_duplicates(subset=['cik', 'year'], keep='last')
+dy = dfy.year.value_counts().sort_index()
+# Save to csv
+dfy=dfy.copy()
+dfy['file_out'] = dfy['file'].str.replace('edgar\/data','')
+dfy.to_csv('obs_full.txt')
